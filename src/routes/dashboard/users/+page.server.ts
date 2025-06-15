@@ -1,4 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
+import { API_CONFIG } from '$lib/constants/config';
 
 interface User {
   id: number;
@@ -47,11 +48,31 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
   // Ambil parameter dari URL
   const page = url.searchParams.get('page') || '1';
   const searchName = url.searchParams.get('name') || '';
-  const token = cookies.get('auth_token') || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+  const token = cookies.get('auth_token');
+
+  // If no token from cookie, return empty data - client-side will handle authentication
+  if (!token) {
+    return {
+      users: [],
+      pagination: {
+        currentPage: 1,
+        lastPage: 1,
+        links: [],
+        total: 0,
+        nextPageUrl: null,
+        prevPageUrl: null,
+        perPage: 1
+      },
+      success: false,
+      message: 'Authentication required',
+      searchName,
+      needsAuth: true
+    };
+  }
 
   try {
     // Buat URL API dengan parameter nama jika ada
-    let apiUrl = `http://localhost:8000/api/user?page=${page}`;
+    let apiUrl = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USERS}?page=${page}`;
     if (searchName) {
       apiUrl += `&name=${encodeURIComponent(searchName)}`;
     }
@@ -82,7 +103,8 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
       },
       success: apiResponse.success,
       message: apiResponse.message,
-      searchName
+      searchName,
+      needsAuth: false
     };
   } catch (error) {
     console.error('Error fetching users:', error);
@@ -99,7 +121,8 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
       },
       success: false,
       message: error instanceof Error ? error.message : 'Failed to fetch users',
-      searchName
+      searchName,
+      needsAuth: false
     };
   }
 };
@@ -118,7 +141,7 @@ export const actions: Actions = {
     try {
       const formData = await request.formData();
       const file = formData.get('file');
-      const token = cookies.get('auth_token') || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      const token = cookies.get('auth_token');
 
       if (!file || !(file instanceof File)) {
         return {
@@ -146,7 +169,7 @@ export const actions: Actions = {
       apiFormData.append('file', file);
 
       // Kirim ke API
-      const response = await fetch('http://localhost:8000/api/user/import', {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.USER_IMPORT}`, {
         method: 'POST',
         body: apiFormData,
         headers: {

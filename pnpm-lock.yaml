@@ -8,6 +8,9 @@ onlyBuiltDependencies:
   - esbuild
 
 dependencies:
+  '@tabler/icons-svelte':
+    specifier: ^3.34.0
+    version: 3.34.0(svelte@5.25.6)
   chart.js:
     specifier: ^4.4.8
     version: 4.4.8
@@ -675,6 +678,19 @@ packages:
     transitivePeerDependencies:
       - supports-color
     dev: true
+
+  /@tabler/icons-svelte@3.34.0(svelte@5.25.6):
+    resolution: {integrity: sha512-GK361EswvIZaXY0Eoa4V3lu7qAUQ7XXiPDEkS7+ZeNR5CULD8JkMUG15UITHSmUtu/q2RhCuhgtkW5rdZeIpFQ==}
+    peerDependencies:
+      svelte: '>=3 <6 || >=5.0.0-next.0'
+    dependencies:
+      '@tabler/icons': 3.34.0
+      svelte: 5.25.6
+    dev: false
+
+  /@tabler/icons@3.34.0:
+    resolution: {integrity: sha512-jtVqv0JC1WU2TTEBN32D9+R6mc1iEBuPwLnBsWaR02SIEciu9aq5806AWkCHuObhQ4ERhhXErLEK7Fs+tEZxiA==}
+    dev: false
 
   /@tailwindcss/node@4.1.3:
     resolution: {integrity: sha512-H/6r6IPFJkCfBJZ2dKZiPJ7Ueb2wbL592+9bQEl2r73qbX6yGnmQVIfiUvDRB2YI0a3PWDrzUwkvQx1XW1bNkA==}

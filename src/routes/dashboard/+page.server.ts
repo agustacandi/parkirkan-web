@@ -21,11 +21,26 @@ interface ApiResponse {
 }
 
 export const load: PageServerLoad = async ({ fetch, cookies }) => {
-  // Cek autentikasi
+  // Try to get token from cookie first, but don't redirect if not found
+  // Client-side authentication will handle the redirect
   const token = cookies.get('auth_token');
 
   if (!token) {
-    throw redirect(302, '/login?redirect=/dashboard');
+    // Return empty data, client-side will handle authentication
+    return {
+      dashboardData: {
+        total_vehicles: 0,
+        total_users: 0,
+        total_parkings: 0,
+        chart_data: {
+          labels: [],
+          data: []
+        }
+      },
+      success: false,
+      message: 'Authentication required',
+      needsAuth: true
+    };
   }
 
   try {
@@ -45,7 +60,8 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
     return {
       dashboardData: apiResponse.data,
       success: apiResponse.success,
-      message: apiResponse.message
+      message: apiResponse.message,
+      needsAuth: false
     };
   } catch (error) {
     console.error('Error fetching dashboard data:', error);
@@ -60,7 +76,8 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
         }
       },
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to fetch dashboard data'
+      message: error instanceof Error ? error.message : 'Failed to fetch dashboard data',
+      needsAuth: false
     };
   }
 };

@@ -1,217 +1,313 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { onMount, onDestroy } from 'svelte';
+	import { storeAuthData } from '$lib/auth';
+	import { apiRequest, validateRequiredFields } from '$lib/utils/api';
+	import { API_CONFIG, ROUTES, UI_CONFIG } from '$lib/constants/config';
+	import type { LoginResponse, UserData, ApiError } from '$lib/types/auth';
 
-	// src/types/auth.ts
-
-	interface UserData {
-		id: number;
-		name: string;
-		email: string;
-		phone: string | null;
-		email_verified_at: string;
-		created_at: string;
-		updated_at: string;
-		role: string;
-		token: string;
-	}
-
-	interface LoginResponse {
-		success: boolean;
-		data: UserData | { error: string };
-		message: string;
-	}
-
+	// Component state
 	let email = '';
 	let password = '';
 	let loading = false;
 	let error = '';
 	let rememberMe = false;
 
-	async function handleLogin() {
-		if (!email || !password) {
-			error = 'Email dan password harus diisi.';
+	// Cleanup references
+	let emailInputRef: HTMLInputElement;
+	let errorTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+	/**
+	 * Enhanced login handler with proper error handling and validation
+	 */
+	async function handleLogin(): Promise<void> {
+		// Clear previous error
+		clearError();
+
+		// Validate required fields
+		const validation = validateRequiredFields({ email, password }, ['email', 'password']);
+		if (!validation.isValid) {
+			setError(`Kolom berikut harus diisi: ${validation.missingFields.join(', ')}`);
+			return;
+		}
+
+		// Email format validation
+		if (!isValidEmail(email)) {
+			setError('Format email tidak valid.');
 			return;
 		}
 
 		try {
 			loading = true;
-			error = '';
 
-			const response = await fetch('http://localhost:8000/api/login-admin', {
+			// Make API request with proper error handling
+			const result = await apiRequest<LoginResponse>(API_CONFIG.ENDPOINTS.LOGIN_ADMIN, {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
 				body: JSON.stringify({ email, password })
 			});
 
-			const result = await response.json();
+			if (result.success && 'token' in result.data) {
+				const userData = result.data as UserData;
 
-			if (result.success) {
-				// Simpan token ke localStorage atau sessionStorage
-				if (rememberMe) {
-					localStorage.setItem('auth_token', result.data.token);
-					localStorage.setItem('user', JSON.stringify(result.data));
-				} else {
-					sessionStorage.setItem('auth_token', result.data.token);
-					sessionStorage.setItem('user', JSON.stringify(result.data));
+				// Store authentication data using improved utility
+				const stored = storeAuthData(userData.token, userData, rememberMe);
+				if (!stored) {
+					setError('Gagal menyimpan data autentikasi. Silakan coba lagi.');
+					return;
 				}
 
-				// Kirim token ke server untuk disimpan sebagai cookie juga
-				await fetch('/api/auth/login', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ token: result.data.token })
-				});
-
-				// Redirect ke dashboard
-				goto('/dashboard');
+				// Redirect to intended page or dashboard
+				const redirectTo = $page.url.searchParams.get('redirect') || ROUTES.DASHBOARD;
+				await goto(redirectTo);
 			} else {
-				error = result.data?.error || result.message || 'Login gagal.';
+				const errorData = result.data as { error: string };
+				setError(errorData.error || result.message || 'Login gagal.');
 			}
 		} catch (err) {
 			console.error('Login error:', err);
-			error = 'Terjadi kesalahan saat mencoba login. Silakan coba lagi.';
+			const apiError = err as ApiError;
+
+			if (apiError.code === 'TIMEOUT') {
+				setError('Koneksi timeout. Silakan coba lagi.');
+			} else if (apiError.code === 'NETWORK_ERROR') {
+				setError('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+			} else if (apiError.status === 401) {
+				setError('Email atau password salah.');
+			} else if (apiError.status === 429) {
+				setError('Terlalu banyak percobaan login. Silakan tunggu sebentar.');
+			} else {
+				setError(apiError.message || 'Terjadi kesalahan saat login. Silakan coba lagi.');
+			}
 		} finally {
 			loading = false;
 		}
 	}
 
+	/**
+	 * Set error with auto-clear timeout
+	 */
+	function setError(message: string): void {
+		error = message;
+		clearErrorTimeout();
+		errorTimeoutId = setTimeout(() => {
+			error = '';
+		}, UI_CONFIG.ERROR_DISPLAY_TIME);
+	}
+
+	/**
+	 * Clear error and timeout
+	 */
+	function clearError(): void {
+		error = '';
+		clearErrorTimeout();
+	}
+
+	/**
+	 * Clear error timeout
+	 */
+	function clearErrorTimeout(): void {
+		if (errorTimeoutId !== null) {
+			clearTimeout(errorTimeoutId);
+			errorTimeoutId = null;
+		}
+	}
+
+	/**
+	 * Basic email validation
+	 */
+	function isValidEmail(email: string): boolean {
+		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		return emailRegex.test(email);
+	}
+
+	/**
+	 * Focus email input with error handling
+	 */
+	function focusEmailInput(): void {
+		if (emailInputRef) {
+			try {
+				emailInputRef.focus();
+			} catch (error) {
+				console.warn('Could not focus email input:', error);
+			}
+		}
+	}
+
 	onMount(() => {
-		// Focus pada input email saat halaman dimuat
-		const emailInput = document.getElementById('email');
-		if (emailInput) emailInput.focus();
+		// Add small delay to ensure DOM is ready
+		setTimeout(focusEmailInput, 100);
+	});
+
+	onDestroy(() => {
+		// Cleanup timeouts to prevent memory leaks
+		clearErrorTimeout();
 	});
 </script>
 
 <svelte:head>
-	<title>Login Admin</title>
+	<title>Parkirkan Web - Login Admin</title>
 </svelte:head>
 
-<div class="flex min-h-screen flex-col justify-center bg-gray-50 py-12 sm:px-6 lg:px-8">
-	<div class="sm:mx-auto sm:w-full sm:max-w-md">
-		<h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">Admin Login</h2>
-		<p class="mt-2 text-center text-sm text-gray-600">Masuk ke dashboard admin</p>
-	</div>
+<div class="flex min-h-screen bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+	<div
+		class="flex flex-1 flex-col justify-center px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24"
+	>
+		<div class="mx-auto w-full max-w-sm lg:w-96">
+			<!-- Logo and Header -->
+			<div class="text-center">
+				<div
+					class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 shadow-lg"
+				>
+					<svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+						/>
+					</svg>
+				</div>
+				<h2 class="mt-6 text-3xl font-bold tracking-tight text-gray-900">Parkirkan Admin</h2>
+				<p class="mt-2 text-sm text-gray-600">Sign in to administrator dashboard</p>
+			</div>
 
-	<div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-		<div class="bg-white px-4 py-8 shadow sm:rounded-lg sm:px-10">
-			<form class="space-y-6" on:submit|preventDefault={handleLogin}>
-				{#if error}
-					<div class="border-l-4 border-red-400 bg-red-50 p-4">
-						<div class="flex">
-							<div class="flex-shrink-0">
-								<svg
-									class="h-5 w-5 text-red-400"
-									xmlns="http://www.w3.org/2000/svg"
-									viewBox="0 0 20 20"
-									fill="currentColor"
-									aria-hidden="true"
-								>
-									<path
-										fill-rule="evenodd"
-										d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-										clip-rule="evenodd"
-									/>
-								</svg>
+			<div class="mt-8">
+				<div class="rounded-xl bg-white p-8 shadow-xl ring-1 ring-gray-900/5">
+					<form class="space-y-6" on:submit|preventDefault={handleLogin}>
+						{#if error}
+							<div class="rounded-lg border border-red-200 bg-red-50 p-4">
+								<div class="flex">
+									<div class="flex-shrink-0">
+										<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+											<path
+												fill-rule="evenodd"
+												d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+												clip-rule="evenodd"
+											/>
+										</svg>
+									</div>
+									<div class="ml-3">
+										<p class="text-sm font-medium text-red-800">{error}</p>
+									</div>
+								</div>
 							</div>
-							<div class="ml-3">
-								<p class="text-sm text-red-700">
-									{error}
-								</p>
+						{/if}
+
+						<div class="space-y-5">
+							<div>
+								<label for="email" class="block text-sm font-medium leading-6 text-gray-900"
+									>Email</label
+								>
+								<div class="mt-2">
+									<input
+										bind:this={emailInputRef}
+										id="email"
+										name="email"
+										type="email"
+										autocomplete="email"
+										required
+										bind:value={email}
+										class="block w-full rounded-lg border-0 px-4 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 transition-all duration-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+										placeholder="admin@example.com"
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label for="password" class="block text-sm font-medium leading-6 text-gray-900"
+									>Password</label
+								>
+								<div class="mt-2">
+									<input
+										id="password"
+										name="password"
+										type="password"
+										autocomplete="current-password"
+										required
+										bind:value={password}
+										class="block w-full rounded-lg border-0 px-4 py-3 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 transition-all duration-200 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-blue-600 sm:text-sm sm:leading-6"
+										placeholder="••••••••"
+									/>
+								</div>
+							</div>
+
+							<div class="flex items-center justify-between">
+								<div class="flex items-center">
+									<input
+										id="remember_me"
+										name="remember_me"
+										type="checkbox"
+										bind:checked={rememberMe}
+										class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-600"
+									/>
+									<label for="remember_me" class="ml-3 block text-sm leading-6 text-gray-700"
+										>Remember me</label
+									>
+								</div>
+							</div>
+
+							<div>
+								<button
+									type="submit"
+									disabled={loading}
+									class="flex w-full justify-center rounded-lg bg-gradient-to-r from-blue-600 to-cyan-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-all duration-200 hover:from-blue-700 hover:to-cyan-700 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+								>
+									{#if loading}
+										<svg
+											class="-ml-1 mr-3 h-5 w-5 animate-spin text-white"
+											fill="none"
+											viewBox="0 0 24 24"
+										>
+											<circle
+												class="opacity-25"
+												cx="12"
+												cy="12"
+												r="10"
+												stroke="currentColor"
+												stroke-width="4"
+											></circle>
+											<path
+												class="opacity-75"
+												fill="currentColor"
+												d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+											></path>
+										</svg>
+										Signing in...
+									{:else}
+										Sign in to Dashboard
+									{/if}
+								</button>
 							</div>
 						</div>
-					</div>
-				{/if}
-
-				<div>
-					<label for="email" class="block text-sm font-medium text-gray-700"> Email </label>
-					<div class="mt-1">
-						<input
-							id="email"
-							name="email"
-							type="email"
-							autocomplete="email"
-							required
-							bind:value={email}
-							class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none sm:text-sm"
-							placeholder="admin@example.com"
-						/>
-					</div>
+					</form>
 				</div>
+			</div>
+		</div>
+	</div>
 
-				<div>
-					<label for="password" class="block text-sm font-medium text-gray-700"> Password </label>
-					<div class="mt-1">
-						<input
-							id="password"
-							name="password"
-							type="password"
-							autocomplete="current-password"
-							required
-							bind:value={password}
-							class="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 focus:outline-none sm:text-sm"
-							placeholder="••••••••"
-						/>
+	<!-- Right side with decorative image -->
+	<div class="relative hidden w-0 flex-1 lg:block">
+		<div
+			class="absolute inset-0 h-full w-full bg-gradient-to-br from-blue-600 via-purple-600 to-cyan-500"
+		>
+			<div class="absolute inset-0 bg-black/20"></div>
+			<div class="relative flex h-full items-center justify-center">
+				<div class="text-center text-white">
+					<div class="mx-auto mb-8 h-24 w-24 rounded-full bg-white/20 p-6 backdrop-blur-sm">
+						<svg class="h-12 w-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+							/>
+						</svg>
 					</div>
+					<h3 class="text-2xl font-bold">Parking Management System</h3>
+					<p class="mt-4 text-lg text-blue-100">Manage all parking data easily and efficiently</p>
 				</div>
-
-				<div class="flex items-center justify-between">
-					<div class="flex items-center">
-						<input
-							id="remember_me"
-							name="remember_me"
-							type="checkbox"
-							bind:checked={rememberMe}
-							class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-						/>
-						<label for="remember_me" class="ml-2 block text-sm text-gray-900"> Ingat saya </label>
-					</div>
-
-					<div class="text-sm">
-						<a href="/forgot-password" class="font-medium text-indigo-600 hover:text-indigo-500">
-							Lupa password?
-						</a>
-					</div>
-				</div>
-
-				<div>
-					<button
-						type="submit"
-						disabled={loading}
-						class="flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						{#if loading}
-							<svg
-								class="mr-3 -ml-1 h-5 w-5 animate-spin text-white"
-								xmlns="http://www.w3.org/2000/svg"
-								fill="none"
-								viewBox="0 0 24 24"
-							>
-								<circle
-									class="opacity-25"
-									cx="12"
-									cy="12"
-									r="10"
-									stroke="currentColor"
-									stroke-width="4"
-								></circle>
-								<path
-									class="opacity-75"
-									fill="currentColor"
-									d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-								></path>
-							</svg>
-							Memproses...
-						{:else}
-							Masuk
-						{/if}
-					</button>
-				</div>
-			</form>
+			</div>
 		</div>
 	</div>
 </div>

@@ -66,7 +66,27 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
   // Ambil parameter dari URL
   const page = url.searchParams.get('page') || '1';
   const searchName = url.searchParams.get('name') || '';
-  const token = cookies.get('auth_token') || localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+  const token = cookies.get('auth_token');
+
+  // If no token from cookie, return empty data - client-side will handle authentication
+  if (!token) {
+    return {
+      parkingHistory: [],
+      pagination: {
+        currentPage: 1,
+        lastPage: 1,
+        links: [],
+        total: 0,
+        nextPageUrl: null,
+        prevPageUrl: null,
+        perPage: 1
+      },
+      success: false,
+      message: 'Authentication required',
+      searchName,
+      needsAuth: true
+    };
+  }
 
   try {
     // Buat URL API dengan parameter nama jika ada
@@ -101,12 +121,13 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
       },
       success: apiResponse.success,
       message: apiResponse.message,
-      searchName
+      searchName,
+      needsAuth: false
     };
   } catch (error) {
-    console.error('Error fetching users:', error);
+    console.error('Error fetching parking history:', error);
     return {
-      users: [],
+      parkingHistory: [],
       pagination: {
         currentPage: 1,
         lastPage: 1,
@@ -117,8 +138,9 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
         perPage: 1
       },
       success: false,
-      message: error instanceof Error ? error.message : 'Failed to fetch users',
-      searchName
+      message: error instanceof Error ? error.message : 'Failed to fetch parking history',
+      searchName,
+      needsAuth: false
     };
   }
 };

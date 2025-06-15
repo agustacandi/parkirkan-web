@@ -9,45 +9,45 @@
 
 	$: ({ users, pagination, success, message, searchName } = data);
 
-	// Nilai input pencarian
+	// Search input value
 	let searchValue = searchName || '';
 
-	// State untuk modal impor
+	// State for import modal
 	let showImportModal = false;
 	let selectedFile: File | null = null;
 	let uploadProgress = false;
 
-	// State untuk modal konfirmasi hapus
+	// State for delete confirmation modal
 	let showDeleteModal = false;
 	let userToDelete = null;
 	let deleteInProgress = false;
 	let deleteError = '';
 
-	// Fungsi untuk membuka modal impor
+	// Function to open import modal
 	function openImportModal() {
 		showImportModal = true;
 	}
 
-	// Fungsi untuk menutup modal impor
+	// Function to close import modal
 	function closeImportModal() {
 		showImportModal = false;
 		selectedFile = null;
 	}
 
-	// Fungsi untuk konfirmasi hapus user
+	// Function to confirm user deletion
 	function confirmDelete(user) {
 		userToDelete = user;
 		showDeleteModal = true;
 	}
 
-	// Fungsi untuk menutup modal konfirmasi
+	// Function to close confirmation modal
 	function closeDeleteModal() {
 		showDeleteModal = false;
 		userToDelete = null;
 		deleteError = '';
 	}
 
-	// Fungsi untuk menghapus user
+	// Function to delete user
 	async function deleteUser() {
 		if (!userToDelete) return;
 
@@ -64,19 +64,19 @@
 
 			if (!response.ok) {
 				const data = await response.json();
-				throw new Error(data.message || 'Gagal menghapus user');
+				throw new Error(data.message || 'Failed to delete user');
 			}
 
-			// Jika berhasil hapus, refresh halaman
+			// If deletion successful, refresh page
 			window.location.reload();
 		} catch (error) {
-			deleteError = error.message || 'Terjadi kesalahan saat menghapus user';
+			deleteError = error.message || 'An error occurred while deleting user';
 		} finally {
 			deleteInProgress = false;
 		}
 	}
 
-	// Fungsi untuk menghandle perubahan file
+	// Function to handle file change
 	function handleFileChange(event: Event) {
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
@@ -84,11 +84,11 @@
 		}
 	}
 
-	// Fungsi untuk membuat URL pagination dengan menyertakan parameter pencarian
+	// Function to create pagination URL with search parameters
 	function createPageUrl(url: string | null, label: string): string {
 		if (!url) return '';
 
-		// Dapatkan nomor halaman
+		// Get page number
 		let pageNum = '';
 		if (['1', '2', '3'].includes(label)) {
 			pageNum = label;
@@ -99,7 +99,7 @@
 			}
 		}
 
-		// Buat URL dengan parameter pencarian jika ada
+		// Create URL with search parameters if any
 		let pageUrl = `?page=${pageNum}`;
 		if (searchName) {
 			pageUrl += `&name=${encodeURIComponent(searchName)}`;
@@ -108,9 +108,9 @@
 		return pageUrl;
 	}
 
-	// Fungsi untuk mendownload template
+	// Function to download template
 	function downloadTemplate() {
-		// Ini hanya contoh sederhana, Anda mungkin perlu membuat endpoint untuk mendownload template
+		// Simple example, you might need to create an endpoint for template download
 		const csvContent =
 			'name,email,phone,role\nJohn Doe,john@example.com,62123456789,user\nJane Smith,jane@example.com,62987654321,user';
 		const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -124,36 +124,36 @@
 </script>
 
 <svelte:head>
-	<title>Daftar Pengguna</title>
+	<title>User List</title>
 </svelte:head>
 
 <div class="mx-auto max-w-6xl px-4 py-8">
-	<h1 class="mb-6 text-2xl font-semibold text-gray-800">Daftar Pengguna</h1>
+	<h1 class="mb-6 text-2xl font-semibold text-gray-800">User List</h1>
 
 	<div class="mb-6 flex flex-col items-start justify-between gap-4 md:flex-row">
-		<!-- Form Pencarian -->
+		<!-- Search Form -->
 		<div class="w-full md:w-2/3">
 			<form method="GET" class="w-full">
 				<div class="flex gap-2">
 					<input
 						type="text"
 						name="name"
-						placeholder="Cari berdasarkan nama..."
+						placeholder="Search by name..."
 						value={searchName || ''}
-						class="flex-1 rounded-md border border-gray-200 px-4 py-2 focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none"
+						class="flex-1 rounded-md border border-gray-200 px-4 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
 					/>
 					<button
 						type="submit"
 						class="rounded-md bg-blue-500 px-4 py-2 text-white transition-colors hover:bg-blue-600"
 					>
-						Cari
+						Search
 					</button>
 				</div>
 
-				<!-- Jika ada pencarian aktif, tampilkan tombol reset -->
+				<!-- If there's an active search, show reset button -->
 				{#if searchName}
 					<div class="mt-2 flex items-center justify-between rounded-md bg-gray-50 p-2 text-sm">
-						<span>Hasil pencarian untuk: <strong>{searchName}</strong></span>
+						<span>Search results for: <strong>{searchName}</strong></span>
 						<a
 							href="?page=1"
 							class="rounded-md bg-gray-500 px-2 py-1 text-xs text-white transition-colors hover:bg-gray-600"
@@ -164,18 +164,18 @@
 			</form>
 		</div>
 
-		<!-- Tombol Import -->
+		<!-- Import Button -->
 		<div class="w-full md:w-auto">
 			<button
 				class="w-full rounded-md bg-emerald-500 px-4 py-2 text-white transition-colors hover:bg-emerald-600 md:w-auto"
 				on:click={openImportModal}
 			>
-				Import User
+				Import Users
 			</button>
 		</div>
 	</div>
 
-	<!-- Tampilkan pesan form submission jika ada -->
+	<!-- Show form submission message if any -->
 	{#if form?.message}
 		<div
 			class={`mb-4 rounded-md p-4 ${form.success ? 'border border-emerald-200 bg-emerald-50 text-emerald-700' : 'border border-red-200 bg-red-50 text-red-700'}`}
@@ -191,14 +191,14 @@
 	{:else if users.length === 0}
 		<div class="mb-4 rounded-md border border-blue-200 bg-blue-50 p-4 text-blue-700">
 			<p>
-				Tidak ada pengguna yang ditemukan{searchName ? ` untuk pencarian "${searchName}"` : ''}.
+				No users found{searchName ? ` for search "${searchName}"` : ''}.
 			</p>
 		</div>
 	{:else}
 		<div class="mb-4 text-center text-sm text-gray-600">
 			<p>
-				Menampilkan halaman {pagination.currentPage} dari {pagination.lastPage}
-				(Total: {pagination.total} pengguna, {pagination.perPage} per halaman)
+				Showing page {pagination.currentPage} of {pagination.lastPage}
+				(Total: {pagination.total} users, {pagination.perPage} per page)
 			</p>
 		</div>
 
@@ -207,12 +207,12 @@
 				<thead>
 					<tr class="bg-gray-50 text-left text-gray-700">
 						<th class="px-4 py-3 font-medium">ID</th>
-						<th class="px-4 py-3 font-medium">Nama</th>
+						<th class="px-4 py-3 font-medium">Name</th>
 						<th class="px-4 py-3 font-medium">Email</th>
-						<th class="px-4 py-3 font-medium">Nomor Telepon</th>
+						<th class="px-4 py-3 font-medium">Phone Number</th>
 						<th class="px-4 py-3 font-medium">Role</th>
-						<th class="px-4 py-3 font-medium">Dibuat Pada</th>
-						<th class="px-4 py-3 font-medium">Aksi</th>
+						<th class="px-4 py-3 font-medium">Created At</th>
+						<th class="px-4 py-3 font-medium">Action</th>
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-gray-200">
@@ -231,7 +231,7 @@
 									class="rounded bg-red-500 px-3 py-1 text-sm text-white transition-colors hover:bg-red-600"
 									on:click={() => confirmDelete(user)}
 								>
-									Hapus
+									Delete
 								</button>
 							</td>
 						</tr>
@@ -240,7 +240,7 @@
 			</table>
 		</div>
 
-		<!-- Navigasi pagination -->
+		<!-- Pagination navigation -->
 		<div class="mt-6 flex justify-center">
 			<div class="flex gap-2">
 				{#each pagination.links as link}
@@ -265,10 +265,10 @@
 
 	<!-- Modal Import -->
 	{#if showImportModal}
-		<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
 			<div class="w-full max-w-md rounded-lg bg-white shadow-lg">
 				<div class="flex items-center justify-between border-b p-4">
-					<h2 class="text-lg font-medium text-gray-800">Import User</h2>
+					<h2 class="text-lg font-medium text-gray-800">Import Users</h2>
 					<button class="text-2xl text-gray-500 hover:text-gray-700" on:click={closeImportModal}
 						>&times;</button
 					>
@@ -276,7 +276,7 @@
 
 				<div class="p-6">
 					<p class="mb-4 text-gray-600">
-						Unggah file Excel (.xls, .xlsx) atau CSV (.csv) yang berisi data pengguna.
+						Upload Excel (.xls, .xlsx) or CSV (.csv) file containing user data.
 					</p>
 
 					<div class="mb-6">
@@ -287,7 +287,7 @@
 							Download Template
 						</button>
 						<div class="mt-1 text-xs text-gray-500">
-							Unduh file template untuk melihat format yang diperlukan
+							Download template file to see the required format
 						</div>
 					</div>
 
@@ -296,17 +296,17 @@
 						action="?/import"
 						enctype="multipart/form-data"
 						use:enhance={() => {
-							// Sebelum submit
+							// Before submit
 							uploadProgress = true;
 
 							return async ({ result }) => {
-								// Setelah submit
+								// After submit
 								uploadProgress = false;
 
 								if (result.type === 'success' && result.data.success) {
-									// Jika berhasil, tutup modal dan refresh data
+									// If successful, close modal and refresh data
 									closeImportModal();
-									// Refresh data setelah import berhasil (bisa dengan redirect atau cara lain)
+									// Refresh data after successful import (can be done with redirect or other methods)
 									window.location.reload();
 								}
 							};
@@ -317,7 +317,7 @@
 								for="file-input"
 								class="block cursor-pointer rounded-md border-2 border-dashed border-gray-300 p-3 text-center transition-colors hover:bg-gray-50"
 							>
-								{selectedFile ? selectedFile.name : 'Pilih File'}
+								{selectedFile ? selectedFile.name : 'Choose File'}
 							</label>
 							<input
 								id="file-input"
@@ -331,7 +331,7 @@
 
 						{#if selectedFile}
 							<div class="mb-4 flex items-center justify-between rounded-md bg-gray-50 p-2 text-sm">
-								<span>File terpilih: <strong>{selectedFile.name}</strong></span>
+								<span>Selected file: <strong>{selectedFile.name}</strong></span>
 								<span class="text-gray-500">({(selectedFile.size / 1024).toFixed(2)} KB)</span>
 							</div>
 						{/if}
@@ -342,14 +342,14 @@
 								class="rounded-md border border-gray-200 bg-gray-100 px-4 py-2 text-gray-700 transition-colors hover:bg-gray-200"
 								on:click={closeImportModal}
 							>
-								Batal
+								Cancel
 							</button>
 							<button
 								type="submit"
 								class="rounded-md bg-emerald-500 px-4 py-2 text-white transition-colors hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-gray-400"
 								disabled={!selectedFile || uploadProgress}
 							>
-								{uploadProgress ? 'Mengupload...' : 'Upload'}
+								{uploadProgress ? 'Uploading...' : 'Upload'}
 							</button>
 						</div>
 					</form>
@@ -360,10 +360,10 @@
 
 	<!-- Modal Konfirmasi Hapus -->
 	{#if showDeleteModal && userToDelete}
-		<div class="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black">
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
 			<div class="w-full max-w-md rounded-lg bg-white shadow-lg">
 				<div class="flex items-center justify-between border-b p-4">
-					<h2 class="text-lg font-medium text-gray-800">Konfirmasi Hapus</h2>
+					<h2 class="text-lg font-medium text-gray-800">Delete Confirmation</h2>
 					<button class="text-2xl text-gray-500 hover:text-gray-700" on:click={closeDeleteModal}
 						>&times;</button
 					>
@@ -386,10 +386,10 @@
 							></path>
 						</svg>
 
-						<p class="mb-2 text-lg font-medium">Apakah Anda yakin?</p>
+						<p class="mb-2 text-lg font-medium">Are you sure?</p>
 						<p class="text-gray-600">
-							Anda akan menghapus pengguna <strong>{userToDelete.name}</strong> dengan ID:
-							<strong>{userToDelete.id}</strong>. Tindakan ini tidak dapat dibatalkan.
+							You are about to delete user <strong>{userToDelete.name}</strong> with ID:
+							<strong>{userToDelete.id}</strong>. This action cannot be undone.
 						</p>
 					</div>
 
@@ -406,7 +406,7 @@
 							on:click={closeDeleteModal}
 							disabled={deleteInProgress}
 						>
-							Batal
+							Cancel
 						</button>
 						<button
 							type="button"
@@ -414,7 +414,7 @@
 							on:click={deleteUser}
 							disabled={deleteInProgress}
 						>
-							{deleteInProgress ? 'Menghapus...' : 'Hapus'}
+							{deleteInProgress ? 'Deleting...' : 'Delete'}
 						</button>
 					</div>
 				</div>
