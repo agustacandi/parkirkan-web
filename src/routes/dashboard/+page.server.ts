@@ -44,7 +44,8 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
   }
 
   try {
-    const response = await fetch('http://localhost:8000/api/dashboard', {
+    const apiBaseUrl = process.env.VITE_API_BASE_URL || 'https://berserk.my.id';
+    const response = await fetch(`${apiBaseUrl}/api/dashboard`, {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,

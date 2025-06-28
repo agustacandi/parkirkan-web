@@ -51,7 +51,8 @@ export const load: PageServerLoad = async ({ fetch, url }) => {
 
   try {
     // Buat URL API dengan parameter nama jika ada
-    let apiUrl = `http://localhost:8000/api/user?page=${page}`;
+    const apiBaseUrl = process.env.VITE_API_BASE_URL || 'https://berserk.my.id';
+    let apiUrl = `${apiBaseUrl}/api/user?page=${page}`;
     if (searchName) {
       apiUrl += `&name=${encodeURIComponent(searchName)}`;
     }
@@ -145,7 +146,8 @@ export const actions: Actions = {
       apiFormData.append('file', file);
 
       // Kirim ke API
-      const response = await fetch('http://localhost:8000/api/user/import', {
+      const apiBaseUrl = process.env.VITE_API_BASE_URL || 'https://berserk.my.id';
+      const response = await fetch(`${apiBaseUrl}/api/user/import`, {
         method: 'POST',
         body: apiFormData,
         headers: {

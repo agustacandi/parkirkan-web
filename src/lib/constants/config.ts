@@ -5,7 +5,7 @@
 
 // API Configuration
 export const API_CONFIG = {
-    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000',
+    BASE_URL: import.meta.env.VITE_API_BASE_URL || 'https://berserk.my.id',
     ENDPOINTS: {
         LOGIN_ADMIN: '/api/login-admin',
         LOGOUT: '/api/logout',

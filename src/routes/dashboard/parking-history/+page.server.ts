@@ -90,7 +90,8 @@ export const load: PageServerLoad = async ({ fetch, url, cookies }) => {
 
   try {
     // Buat URL API dengan parameter nama jika ada
-    let apiUrl = `http://localhost:8000/api/parking-all?page=${page}`;
+    const apiBaseUrl = process.env.VITE_API_BASE_URL || 'https://berserk.my.id';
+    let apiUrl = `${apiBaseUrl}/api/parking-all?page=${page}`;
     if (searchName) {
       apiUrl += `&name=${encodeURIComponent(searchName)}`;
     }
